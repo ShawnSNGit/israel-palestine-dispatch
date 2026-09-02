@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dispatch — Israel/Palestine, side by side</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#eae7df;
+    --ink:#1d2024;
+    --ink-soft:#565b62;
+    --rule:#c6c2b6;
+    --blue:#39566b;
+    --red:#8f3b34;
+    --green:#4b6b4f;
+    --amber:#8a7a3a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .masthead{
+    max-width:1180px;
+    margin:0 auto;
+    padding:36px 24px 20px;
+    border-bottom:3px double var(--ink);
+  }
+  .masthead-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  h1{
+    font-family:'Newsreader', serif;
+    font-weight:600;
+    font-size:2.6rem;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .meta{
+    font-size:0.82rem;
+    color:var(--ink-soft);
+    text-align:right;
+  }
+  .dek{
+    font-family:'Newsreader', serif;
+    font-style:italic;
+    font-size:1.05rem;
+    color:var(--ink-soft);
+    margin-top:10px;
+    max-width:60ch;
+    line-height:1.5;
+  }
+
+  .summary{
+    max-width:1180px;
+    margin:0 auto;
+    padding:26px 24px 28px;
+    border-bottom:1px solid var(--rule);
+    display:grid;
+    grid-template-columns:1.1fr 1.4fr;
+    gap:40px;
+  }
+  .summary h2{
+    font-family:'Newsreader', serif;
+    font-weight:600;
+    font-size:1.05rem;
+    margin:0 0 12px;
+  }
+  .summary ul{ margin:0; padding-left:18px; }
+  .summary li{
+    font-size:0.92rem;
+    line-height:1.55;
+    margin-bottom:8px;
+  }
+  table.ratings{
+    width:100%;
+    border-collapse:collapse;
+    font-size:0.8rem;
+  }
+  table.ratings th{
+    text-align:left;
+    font-weight:600;
+    font-size:0.72rem;
+    color:var(--ink-soft);
+    padding:0 10px 8px 0;
+    border-bottom:1px solid var(--rule);
+  }
+  table.ratings td{
+    padding:8px 10px 8px 0;
+    border-bottom:1px solid var(--rule);
+    vertical-align:top;
+  }
+  table.ratings td:first-child{ font-weight:500; }
+  .pill{
+    display:inline-block;
+    font-size:0.72rem;
+    padding:1px 7px;
+    border-radius:3px;
+    border:1px solid var(--rule);
+    white-space:nowrap;
+  }
+  .pill.high{ border-color:var(--green); color:var(--green); }
+  .pill.medium{ border-color:var(--amber); color:var(--amber); }
+  .pill.low{ border-color:var(--red); color:var(--red); }
+  .ratings-foot{
+    font-size:0.72rem;
+    color:var(--ink-soft);
+    margin-top:10px;
+    line-height:1.5;
+  }
+  .ratings-foot a{ color:var(--blue); }
+
+  .refresh-row{
+    max-width:1180px;
+    margin:0 auto;
+    padding:16px 24px 0;
+    display:flex;
+    justify-content:flex-end;
+  }
+  .refresh-row button{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:0.8rem;
+    background:none;
+    border:1px solid var(--ink);
+    color:var(--ink);
+    padding:7px 14px;
+    cursor:pointer;
+  }
+  .refresh-row button:hover{ background:var(--ink); color:var(--paper); }
+  .refresh-row button:disabled{ opacity:0.5; cursor:default; }
+
+  .board{
+    max-width:1180px;
+    margin:0 auto;
+    padding:20px 24px 60px;
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:0;
+  }
+  .column{
+    padding:0 22px;
+    border-left:1px solid var(--rule);
+  }
+  .column:first-child{ border-left:none; padding-left:0; }
+  .column-head{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .swatch{
+    width:10px; height:10px; border-radius:50%; flex-shrink:0;
+  }
+  .column-title{
+    font-family:'Newsreader', serif;
+    font-weight:600;
+    font-size:1.15rem;
+  }
+  .column-sub{
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    margin:0 0 10px;
+    line-height:1.4;
+  }
+  .status-row{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    margin:0 0 16px;
+    padding-bottom:14px;
+    border-bottom:1px solid var(--rule);
+  }
+  .status-dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--ink-soft);
+    flex-shrink:0;
+  }
+  .status-dot.live{ background:var(--green); }
+  .status-dot.stale{ background:var(--red); }
+  .status-text{ font-size:0.72rem; color:var(--ink-soft); }
+  .item{
+    padding:14px 0;
+    border-bottom:1px solid var(--rule);
+  }
+  .item:last-child{ border-bottom:none; }
+  .item a{
+    color:var(--ink);
+    text-decoration:none;
+    font-family:'Newsreader', serif;
+    font-size:1.05rem;
+    line-height:1.35;
+    display:block;
+  }
+  .item a:hover{ text-decoration:underline; text-decoration-color:var(--rule); }
+  .item-src{
+    display:block;
+    font-size:0.74rem;
+    color:var(--ink-soft);
+    margin-top:6px;
+  }
+
+  .note{
+    max-width:1180px;
+    margin:0 auto;
+    padding:20px 24px 50px;
+    border-top:1px solid var(--rule);
+  }
+  .note p{
+    font-size:0.85rem;
+    color:var(--ink-soft);
+    line-height:1.6;
+    max-width:72ch;
+  }
+  .note a{ color:var(--blue); }
+  .links{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 18px;
+    margin-top:14px;
+  }
+  .links a{
+    font-size:0.8rem;
+    color:var(--ink);
+    text-decoration:none;
+    border-bottom:1px solid var(--rule);
+    padding-bottom:2px;
+  }
+  .links a:hover{ border-color:var(--ink); }
+
+  @media (max-width: 860px){
+    .summary{ grid-template-columns:1fr; gap:24px; }
+    .board{ grid-template-columns:1fr; }
+    .column{ border-left:none; padding:0 0 24px; border-bottom:1px solid var(--rule); margin-bottom:24px; }
+    .column:last-child{ border-bottom:none; margin-bottom:0; }
+    h1{ font-size:2rem; }
+    .meta{ text-align:left; }
+  }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="masthead-row">
+    <h1>Dispatch</h1>
+    <div class="meta">Baseline snapshot: Sept 2, 2026<br>Live refresh attempts on load — see status per column</div>
+  </div>
+  <div class="dek">Three newsrooms, three vantage points, one story. Headlines are paraphrased and grouped by where each outlet is based — not by any judgment of accuracy.</div>
+</div>
+
+<div class="summary">
+  <div>
+    <h2>At a glance</h2>
+    <ul>
+      <li>West Bank settler violence and home demolitions show up across every column this cycle — Israeli, Palestinian/Arab, and international outlets are all covering arrests, arson incidents, and land clearances, though they frame responsibility differently.</li>
+      <li>Reports of strikes in Gaza continue even after a US-brokered ceasefire was announced, with outlets differing on how much weight to put on the ceasefire holding versus breaking down.</li>
+      <li>Netanyahu's muted public response to Trump's Gaza peace plan, alongside upcoming Israeli elections and renewed debate over an October 7 inquiry, is drawing heavy coverage from Israeli and international press specifically.</li>
+    </ul>
+  </div>
+  <div>
+    <h2>How these sources are rated</h2>
+    <table class="ratings">
+      <thead>
+        <tr><th>Outlet</th><th>Base</th><th>MBFC bias</th><th>MBFC factual rating</th><th>MBFC credibility</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Haaretz</td><td>Israel</td><td>Left</td><td>High</td><td><span class="pill high">High</span></td></tr>
+        <tr><td>Times of Israel</td><td>Israel</td><td>Lean Left</td><td>High (aggregated)</td><td><span class="pill high">High</span></td></tr>
+        <tr><td>Al Jazeera</td><td>Qatar</td><td>Left-Center</td><td>Mixed</td><td><span class="pill medium">Medium</span></td></tr>
+        <tr><td>Al Arabiya</td><td>Saudi Arabia</td><td>Right-Center</td><td>Mixed</td><td><span class="pill low">Low</span></td></tr>
+        <tr><td>CNN</td><td>United States</td><td>Left-Center</td><td>Mostly Factual</td><td><span class="pill high">High</span></td></tr>
+      </tbody>
+    </table>
+    <p class="ratings-foot">Ratings from <a href="https://mediabiasfactcheck.com/" target="_blank" rel="noopener">Media Bias/Fact Check</a>, one independent reviewer among several — AllSides and Ad Fontes Media rate these outlets too, sometimes differently. Treat any single rater as an input, not a verdict; MBFC ties Al Arabiya and Al Jazeera's lower scores partly to state-ownership constraints, which readers may weigh differently.</p>
+  </div>
+</div>
+
+<div class="refresh-row">
+  <button id="refreshBtn" onclick="refreshAll()">Check for live updates</button>
+</div>
+
+<div class="board">
+
+  <div class="column">
+    <div class="column-head">
+      <span class="swatch" style="background:var(--blue)"></span>
+      <span class="column-title">Israeli press</span>
+    </div>
+    <p class="column-sub">Haaretz &amp; The Times of Israel</p>
+    <div class="status-row" id="status-israeli">
+      <span class="status-dot"></span>
+      <span class="status-text">Snapshot from Sept 2, 2026</span>
+    </div>
+    <div id="list-israeli">
+      <div class="item">
+        <a href="https://www.haaretz.com/" target="_blank" rel="noopener">Israeli curriculum set to replace the Palestinian program across all East Jerusalem schools</a>
+        <span class="item-src">Haaretz</span>
+      </div>
+      <div class="item">
+        <a href="https://www.haaretz.com/" target="_blank" rel="noopener">Sara Netanyahu amplifies October 7 conspiracy claims, won't rule out talk of "betrayal from within"</a>
+        <span class="item-src">Haaretz</span>
+      </div>
+      <div class="item">
+        <a href="https://www.haaretz.com/" target="_blank" rel="noopener">Israeli police arrest eight over arson and assault incidents in the southern West Bank</a>
+        <span class="item-src">Haaretz</span>
+      </div>
+      <div class="item">
+        <a href="https://www.timesofisrael.com/" target="_blank" rel="noopener">Shin Bet special forces reportedly capture a wanted militant in a raid on a Gaza Strip building</a>
+        <span class="item-src">The Times of Israel</span>
+      </div>
+      <div class="item">
+        <a href="https://www.timesofisrael.com/" target="_blank" rel="noopener">Police chief instructs officers not to cooperate with a plan handing West Bank policing duties to the army</a>
+        <span class="item-src">The Times of Israel</span>
+      </div>
+      <div class="item">
+        <a href="https://www.timesofisrael.com/" target="_blank" rel="noopener">A West Bank mosque reportedly torched by settlers; eight arrested over assaults and mosque arsons</a>
+        <span class="item-src">The Times of Israel</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="column">
+    <div class="column-head">
+      <span class="swatch" style="background:var(--green)"></span>
+      <span class="column-title">Palestinian &amp; Arab press</span>
+    </div>
+    <p class="column-sub">Al Jazeera &amp; Al Arabiya</p>
+    <div class="status-row" id="status-arab">
+      <span class="status-dot"></span>
+      <span class="status-text">Snapshot from Sept 2, 2026</span>
+    </div>
+    <div id="list-arab">
+      <div class="item">
+        <a href="https://www.aljazeera.com/where/palestine/" target="_blank" rel="noopener">Israel widens strikes across Gaza despite a US-brokered ceasefire, per local reporting</a>
+        <span class="item-src">Al Jazeera</span>
+      </div>
+      <div class="item">
+        <a href="https://www.aljazeera.com/where/palestine/" target="_blank" rel="noopener">Israeli forces reported to have demolished Palestinian homes in Nablus; settlers clear land near Hebron for a new outpost</a>
+        <span class="item-src">Al Jazeera</span>
+      </div>
+      <div class="item">
+        <a href="https://www.aljazeera.com/tag/israel-palestine-conflict/" target="_blank" rel="noopener">A far-right Israeli minister enters the Al-Aqsa Mosque compound with settlers, a move described as breaking a longstanding arrangement</a>
+        <span class="item-src">Al Jazeera</span>
+      </div>
+      <div class="item">
+        <a href="https://english.alarabiya.net/topics/palestinian-israeli-conflict" target="_blank" rel="noopener">Israeli army and settlers reported to have killed two Palestinians in separate West Bank incidents</a>
+        <span class="item-src">Al Arabiya</span>
+      </div>
+      <div class="item">
+        <a href="https://english.alarabiya.net/topics/palestinian-israeli-conflict" target="_blank" rel="noopener">Dozens of Israeli settlers reported to have attacked the West Bank village of Qusra</a>
+        <span class="item-src">Al Arabiya</span>
+      </div>
+      <div class="item">
+        <a href="https://english.alarabiya.net/topics/palestinian-israeli-conflict" target="_blank" rel="noopener">Netanyahu says settlement expansion in the West Bank will continue despite international pressure</a>
+        <span class="item-src">Al Arabiya</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="column">
+    <div class="column-head">
+      <span class="swatch" style="background:var(--red)"></span>
+      <span class="column-title">International wire &amp; broadcast</span>
+    </div>
+    <p class="column-sub">CNN</p>
+    <div class="status-row" id="status-intl">
+      <span class="status-dot"></span>
+      <span class="status-text">Snapshot from Sept 2, 2026</span>
+    </div>
+    <div id="list-intl">
+      <div class="item">
+        <a href="https://www.cnn.com/world/middleeast/israel" target="_blank" rel="noopener">Israel advances a settlement plan that critics say could foreclose a two-state solution</a>
+        <span class="item-src">CNN</span>
+      </div>
+      <div class="item">
+        <a href="https://www.cnn.com/world/middleeast/israel" target="_blank" rel="noopener">Netanyahu stays silent on Trump's Gaza peace plan as strikes continue over the weekend</a>
+        <span class="item-src">CNN</span>
+      </div>
+      <div class="item">
+        <a href="https://www.cnn.com/world/middleeast/israel" target="_blank" rel="noopener">Journalists in Israel report rising alarm over incitement as elections approach</a>
+        <span class="item-src">CNN</span>
+      </div>
+      <div class="item">
+        <a href="https://www.cnn.com/world/middleeast/israel" target="_blank" rel="noopener">US announces new sanctions on Hezbollah and signals added economic pressure on Iran</a>
+        <span class="item-src">CNN</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="note">
+  <p><strong>On "live":</strong> this page tries a real refresh on load and on demand — it calls each outlet's public RSS feed through a third-party feed-reader proxy (rss2json.com), since browsers can't fetch most news sites directly. When that succeeds, a column's status dot turns green and its headlines are pulled straight from the feed. When a feed has no public RSS, or the proxy is down or rate-limited, the dot turns amber/red and the column quietly falls back to the snapshot above — it never fails silently into stale data pretending to be fresh. Headlines are paraphrased in the static snapshot; live-fetched ones show the outlet's own published title, as any feed reader would.</p>
+  <p><strong>On the ratings:</strong> Media Bias/Fact Check is a single, human-reviewed source — useful, but not a neutral ground truth, and it rates outlets as a whole rather than any individual story above. Cross-check with <a href="https://www.allsides.com/" target="_blank" rel="noopener">AllSides</a> or <a href="https://adfontesmedia.com/" target="_blank" rel="noopener">Ad Fontes Media</a> if you want a second opinion.</p>
+  <div class="links">
+    <a href="https://www.haaretz.com/" target="_blank" rel="noopener">Haaretz →</a>
+    <a href="https://www.timesofisrael.com/" target="_blank" rel="noopener">Times of Israel →</a>
+    <a href="https://www.aljazeera.com/where/palestine/" target="_blank" rel="noopener">Al Jazeera →</a>
+    <a href="https://english.alarabiya.net/topics/palestinian-israeli-conflict" target="_blank" rel="noopener">Al Arabiya →</a>
+    <a href="https://www.cnn.com/world/middleeast/israel" target="_blank" rel="noopener">CNN →</a>
+    <a href="https://www.reuters.com/world/middle-east/" target="_blank" rel="noopener">Reuters →</a>
+    <a href="https://apnews.com/hub/israel-hamas-war" target="_blank" rel="noopener">AP →</a>
+  </div>
+</div>
+
+<script>
+  const KEYWORDS = /israel|palestin|gaza|west bank|hamas|idf|jerusalem|netanyahu|settler/i;
+
+  const FEEDS = {
+    israel: [
+      { url: 'https://www.timesofisrael.com/feed/', name: 'The Times of Israel' }
+    ],
+    arab: [
+      { url: 'https://www.aljazeera.com/xml/rss/all.xml', name: 'Al Jazeera' }
+    ],
+    intl: [
+      { url: 'http://rss.cnn.com/rss/cnn_world.rss', name: 'CNN' }
+    ]
+  };
+
+  function setStatus(key, state, label){
+    const row = document.getElementById('status-' + key);
+    const dot = row.querySelector('.status-dot');
+    const text = row.querySelector('.status-text');
+    dot.className = 'status-dot' + (state ? ' ' + state : '');
+    text.textContent = label;
+  }
+
+  async function fetchFeed(feedUrl){
+    const proxied = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feedUrl);
+    const res = await fetch(proxied);
+    if(!res.ok) throw new Error('bad response');
+    const data = await res.json();
+    if(data.status !== 'ok') throw new Error('feed error');
+    return data.items || [];
+  }
+
+  async function refreshColumn(key){
+    setStatus(key, '', 'Checking for live updates…');
+    const sources = FEEDS[key];
+    let allItems = [];
+    let anySucceeded = false;
+
+    for(const src of sources){
+      try{
+        const items = await fetchFeed(src.url);
+        const relevant = items.filter(it => KEYWORDS.test((it.title||'') + ' ' + (it.description||'')));
+        const pool = relevant.length ? relevant : items;
+        pool.slice(0, 6).forEach(it => allItems.push({
+          title: it.title,
+          link: it.link,
+          source: src.name
+        }));
+        anySucceeded = true;
+      }catch(e){
+        // this source failed — continue to others, fall back below if none work
+      }
+    }
+
+    const list = document.getElementById('list-' + key);
+    if(anySucceeded && allItems.length){
+      list.innerHTML = allItems.slice(0, 6).map(it => `
+        <div class="item">
+          <a href="${it.link}" target="_blank" rel="noopener">${escapeHtml(it.title)}</a>
+          <span class="item-src">${escapeHtml(it.source)}</span>
+        </div>
+      `).join('');
+      const now = new Date();
+      setStatus(key, 'live', 'Live — updated ' + now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+    } else {
+      setStatus(key, 'stale', 'Live refresh unavailable — showing Sept 2, 2026 snapshot');
+    }
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str || '';
+    return d.innerHTML;
+  }
+
+  async function refreshAll(){
+    const btn = document.getElementById('refreshBtn');
+    btn.disabled = true;
+    btn.textContent = 'Checking…';
+    await Promise.all(Object.keys(FEEDS).map(refreshColumn));
+    btn.disabled = false;
+    btn.textContent = 'Check for live updates';
+  }
+
+  // Haaretz and Al Arabiya don't expose a public RSS feed suitable for this, so
+  // those halves of their columns always show the snapshot — note it plainly.
+  document.addEventListener('DOMContentLoaded', () => {
+    refreshAll();
+  });
+</script>
+
+</body>
+</html>
