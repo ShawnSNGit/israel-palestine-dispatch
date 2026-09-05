@@ -1,0 +1,26 @@
+name: Editor UI CI
+on:
+  push:
+    paths:
+      - 'services/editor-ui/**'
+  pull_request:
+    paths:
+      - 'services/editor-ui/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: |
+          cd services/editor-ui
+          npm ci
+      - name: Build
+        run: |
+          cd services/editor-ui
+          npm run build
