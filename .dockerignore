@@ -1,0 +1,4 @@
+# Docker ignore for repo root
+.git
+__pycache__
+.env
