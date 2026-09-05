@@ -1,4 +1,4 @@
-name: Autoupdate daily digest
+# Autoupdate daily digest
 on:
   schedule:
     - cron: '0 6 * * *' # daily at 06:00 UTC
@@ -25,16 +25,16 @@ jobs:
       - name: Run auto update (snapshot sources)
         run: |
           python scripts/auto_update.py
-      - name: Generate digest
+      - name: Generate STEMpathize digest
         run: |
           python scripts/generate_digest.py
       - name: Commit and create PR
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: chore(autoupdate): daily digest and source snapshots
+          commit-message: chore(autoupdate): daily STEMpathize digest and source snapshots
           branch: improvement/autoupdate
-          title: "Autoupdate: daily digest and source snapshots"
+          title: "Autoupdate: daily STEMpathize digest and source snapshots"
           body: |
-            This PR was created automatically by CI. It contains updated source snapshots and the latest synthesis digest.
+            This PR was created automatically by CI. It contains updated source snapshots and the latest STEMpathize synthesis digest.
           labels: autoupdate
