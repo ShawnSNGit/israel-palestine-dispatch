@@ -1,0 +1,30 @@
+name: Test Anthropic Integration
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install deps
+        run: pip install requests tenacity diskcache pydantic
+      - name: Run quick synthesis smoke test
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python - <<'PY'
+from services.synthesis.anthropic_client import AnthropicClient
+c = AnthropicClient(temperature=0.0, max_tokens=200)
+prompt = "Please summarize: One source says X, another says Y. Provide a one-sentence hedged summary and a list of source ids in JSON."
+try:
+    out = c.structured_summary(prompt)
+    print("Success:", out.json())
+except Exception as e:
+    print("Failure:", e)
+    raise
+PY
