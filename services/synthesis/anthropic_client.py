@@ -1,154 +1,122 @@
-import os
-import json
-import time
+"""Small, defensive Anthropic Messages API client.
+
+The API key is read only from ANTHROPIC_API_KEY. The client never logs the key
+or the full prompt. Set ANTHROPIC_MODEL explicitly in production.
+"""
+from __future__ import annotations
+
 import hashlib
+import json
 import logging
-from typing import Any, Dict, Optional
+import os
+import time
+from typing import Any, Dict, Optional, Type, TypeVar
 
 import requests
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from diskcache import Cache
 from pydantic import BaseModel, ValidationError
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
-# Configuration / environment
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-ANTHROPIC_API_URL = os.getenv("ANTHROPIC_API_URL", "https://api.anthropic.com/v1/complete")
-DEFAULT_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-2.1")
+logger = logging.getLogger(__name__)
+
+API_URL = os.getenv("ANTHROPIC_API_URL", "https://api.anthropic.com/v1/messages")
+API_VERSION = os.getenv("ANTHROPIC_VERSION", "2023-06-01")
+DEFAULT_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+CACHE_TTL = int(os.getenv("SYNTH_CACHE_TTL", "3600"))
 CACHE_DIR = os.getenv("SYNTH_CACHE_DIR", "/tmp/synth_cache")
-CACHE_TTL = int(os.getenv("SYNTH_CACHE_TTL", "3600"))  # seconds
+T = TypeVar("T", bound=BaseModel)
 
-# Initialize cache & logger
-cache = Cache(CACHE_DIR)
-logger = logging.getLogger("anthropic_client")
-logging.basicConfig(level=logging.INFO)
 
-# Example schema for expected structured response (adjust to your needs)
 class SummarySchema(BaseModel):
     summary: str
     confidence: Optional[float] = None
     citations: Optional[Dict[str, str]] = None
 
 
-def _cache_key(model: str, prompt: str, params: Dict[str, Any]) -> str:
-    h = hashlib.sha256()
-    h.update(model.encode())
-    h.update(b"\n")
-    h.update(prompt.encode())
-    h.update(b"\n")
-    h.update(json.dumps(params, sort_keys=True).encode())
-    return h.hexdigest()
+def _retryable(exc: BaseException) -> bool:
+    if not isinstance(exc, requests.RequestException):
+        return False
+    response = getattr(exc, "response", None)
+    return response is None or response.status_code == 429 or response.status_code >= 500
 
 
-# Retry policy: retry on network errors and 5xx up to 4 attempts with exponential backoff
-@retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10),
-       retry=retry_if_exception_type(requests.exceptions.RequestException))
-def _post_json(payload: Dict[str, Any], timeout: int = 60) -> Dict[str, Any]:
-    headers = {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "Content-Type": "application/json",
-    }
-    resp = requests.post(ANTHROPIC_API_URL, headers=headers, json=payload, timeout=timeout)
-    resp.raise_for_status()
-    return resp.json()
+@retry(
+    stop=stop_after_attempt(4),
+    wait=wait_exponential(multiplier=1, min=1, max=20),
+    retry=retry_if_exception(_retryable),
+    reraise=True,
+)
+def _post(payload: Dict[str, Any], key: str, timeout: int = 60) -> Dict[str, Any]:
+    response = requests.post(
+        API_URL,
+        headers={
+            "x-api-key": key,
+            "anthropic-version": API_VERSION,
+            "content-type": "application/json",
+        },
+        json=payload,
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def _json_object(text: str) -> Dict[str, Any]:
+    """Parse a JSON object, allowing harmless Markdown code fences."""
+    cleaned = text.strip().replace("```json", "").replace("```", "").strip()
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start < 0 or end < start:
+        raise ValueError("Anthropic response did not contain a JSON object")
+    value = json.loads(cleaned[start : end + 1])
+    if not isinstance(value, dict):
+        raise ValueError("Anthropic response JSON was not an object")
+    return value
 
 
 class AnthropicClient:
-    def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.0, max_tokens: int = 512):
-        if not ANTHROPIC_API_KEY:
-            raise RuntimeError("Set ANTHROPIC_API_KEY in environment")
+    def __init__(self, model: str = DEFAULT_MODEL, max_tokens: int = 512, temperature: float = 0.0):
+        self.key = os.getenv("ANTHROPIC_API_KEY")
+        if not self.key:
+            raise RuntimeError("ANTHROPIC_API_KEY is not set")
         self.model = model
-        self.temperature = temperature
         self.max_tokens = max_tokens
+        self.temperature = temperature
+        self.cache = Cache(CACHE_DIR)
 
-    def complete(self, prompt: str, stop: Optional[list] = None, use_cache: bool = True,
-                 cache_ttl: int = CACHE_TTL, extra: Dict[str, Any] = None) -> Dict[str, Any]:
-        params = {"temperature": self.temperature, "max_tokens_to_sample": self.max_tokens}
-        if extra:
-            params.update(extra)
-        key = _cache_key(self.model, prompt, params)
-
+    def complete(self, prompt: str, *, system: Optional[str] = None, use_cache: bool = True) -> Dict[str, Any]:
+        if not prompt.strip():
+            raise ValueError("prompt must not be empty")
+        payload: Dict[str, Any] = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if system:
+            payload["system"] = system
+        cache_key = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
         if use_cache:
-            cached = cache.get(key)
-            if cached:
-                logger.info("cache hit")
+            cached = self.cache.get(cache_key)
+            if cached is not None:
                 return cached
-
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-            "max_tokens_to_sample": params["max_tokens_to_sample"],
-            "temperature": params["temperature"],
-        }
-        if stop:
-            payload["stop"] = stop
-
-        t0 = time.time()
-        result = _post_json(payload)
-        latency = time.time() - t0
-
-        # Audit log: minimal info (don't log secrets)
-        audit = {
-            "timestamp": time.time(),
-            "model": self.model,
-            "params": params,
-            "prompt_hash": hashlib.sha256(prompt.encode()).hexdigest(),
-            "latency_s": latency,
-            "response_keys": list(result.keys()),
-        }
-        # write a small audit file for traceability (swap for DB or S3 in prod)
-        audit_path = f"/tmp/anthropic_audit_{hashlib.sha256(json.dumps(audit).encode()).hexdigest()}.json"
-        try:
-            with open(audit_path, "w") as f:
-                json.dump(audit, f)
-        except Exception:
-            logger.exception("Failed to write audit file")
-
+        started = time.monotonic()
+        result = _post(payload, self.key)
+        logger.info("Anthropic request completed model=%s latency_ms=%d", self.model, int((time.monotonic() - started) * 1000))
         if use_cache:
-            cache.set(key, result, expire=cache_ttl)
-
+            self.cache.set(cache_key, result, expire=CACHE_TTL)
         return result
 
-    def structured_summary(self, prompt: str, schema=SummarySchema, **kwargs) -> BaseModel:
-        """
-        Ask model for a JSON object matching schema. Validate and return model output as Pydantic object.
-        """
-        instruct = (
-            "You are a careful, evidence-first summarizer. Return only a JSON object matching the schema exactly. "
-            "Do NOT provide chain-of-thought or internal reasoning. If you cannot, return an empty JSON object {}.\n\n"
-            f"Schema: {schema.schema_json(indent=2)}\n\n"
-            "Now produce the requested output."
+    def structured_summary(self, prompt: str, schema: Type[T] = SummarySchema) -> T:
+        system = (
+            "You are an evidence-first summarizer. Return only valid JSON matching the requested schema. "
+            "Do not reveal private reasoning. Use only the supplied evidence and cite source IDs."
         )
-        full_prompt = instruct + "\n\n" + prompt
-        raw = self.complete(full_prompt, **kwargs)
-        # model-specific: extract text field (adjust if API returns different structure)
-        text = None
-        if isinstance(raw, dict):
-            # Anthropic API may return a 'completion' or 'completion_text' or 'text' field
-            for k in ("completion", "completion_text", "text", "response", "output"):
-                if k in raw:
-                    text = raw[k]
-                    break
-            # fallback: if 'completion' nested
-            if text is None and "completion" in raw:
-                text = raw["completion"]
-        if text is None:
-            text = json.dumps(raw)
-
-        # Try to locate first JSON substring
+        result = self.complete(prompt, system=system)
+        content = result.get("content", [])
+        text = "".join(block.get("text", "") for block in content if block.get("type") == "text")
+        if not text:
+            raise ValueError("Anthropic returned no text content")
         try:
-            start = text.index("{")
-            obj = json.loads(text[start:])
-        except Exception:
-            # fallback: try entire text parse
-            try:
-                obj = json.loads(text)
-            except Exception:
-                raise ValueError("Model did not return valid JSON")
-
-        # Validate schema
-        try:
-            validated = schema.parse_obj(obj)
-        except ValidationError as e:
-            logger.error("Response did not validate schema: %s", e)
-            raise
-        return validated
+            return schema.parse_obj(_json_object(text))
+        except (ValueError, json.JSONDecodeError, ValidationError) as exc:
+            raise ValueError(f"Anthropic response failed schema validation: {exc}") from exc

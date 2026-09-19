@@ -1,15 +1,18 @@
 # Anthropic integration
 
-This adds a robust Anthropic client for synthesis-service with:
-- retries and exponential backoff
-- disk cache for prompt results
-- schema validation with pydantic
-- simple audit logging (writes small audit JSON files to /tmp)
+The synthesis client uses Anthropic's **Messages API** (`/v1/messages`), with:
+- retries only for network errors, HTTP 429, and server errors;
+- a local TTL cache to avoid repeated requests;
+- strict JSON extraction and Pydantic validation;
+- no API keys or full prompts written to logs.
 
-What you must do to use it
-1) Save your Anthropic API key in the repository secrets: Settings → Secrets → Actions → ANTHROPIC_API_KEY
-2) Install the Python dependencies listed in services/synthesis/requirements.txt
-3) Call services.synthesis.anthropic_client.AnthropicClient from your synthesis pipeline
+Set these environment values:
 
-Testing
-- There is a GitHub Actions workflow .github/workflows/test-anthropic.yml you can run manually (or via workflow_dispatch) to verify the client works with your secret.
+```text
+ANTHROPIC_API_KEY=your-key
+ANTHROPIC_MODEL=your-approved-model-name
+```
+
+`ANTHROPIC_MODEL` is intentionally configurable because model names change. The
+GitHub workflow performs offline checks on every relevant change and performs a
+live check only when `ANTHROPIC_API_KEY` is configured as a repository secret.
