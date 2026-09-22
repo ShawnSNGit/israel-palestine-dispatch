@@ -1,57 +1,43 @@
-# Dispatch — Israel/Palestine, side by side
+# Israel-Palestine Dispatch
 
-A single-page news aggregator that puts Israeli, Palestinian/Arab, and international
-coverage of Israel-Palestine next to each other, with no editorializing.
+This repository collects dispatches, summaries, and sources related to the Israel–Palestine conflict. The goal of the "topline" improvements is to make this project suitable for legal, press, and expert use by improving provenance, quality control, developer tooling, and contribution workflows.
 
-**[View live demo](#)** — replace with your GitHub Pages URL once deployed (see below).
+This branch now includes the "STEMpathize" pipeline: automatic daily snapshots of cited sources, a STEMpathize Digest that synthesizes conflicts with empathy-aware hedging, and machine-readable digests for reproducible analysis.
 
-## What it does
+Key improvements provided in this branch:
+- Clear contribution guidelines and code of conduct
+- Automated CI for link-checking, linting, and tests
+- Provenance and citation guidance for each dispatch
+- Security reporting instructions and license
+- Simple utilities for checking broken links and validating metadata
+- STEMpathize autoupdate: daily snapshots, conflict detection, and empathy-aware hedging
 
-- Three columns, grouped by where each outlet is based (not by any judgment of accuracy):
-  - **Israeli press** — Haaretz, The Times of Israel
-  - **Palestinian & Arab press** — Al Jazeera, Al Arabiya
-  - **International wire & broadcast** — CNN
-- An "At a glance" summary panel synthesizing the throughlines across all three columns.
-- A source-ratings table pulled from [Media Bias/Fact Check](https://mediabiasfactcheck.com/),
-  with a note that it's one reviewer among several (AllSides, Ad Fontes) and shouldn't be
-  read as ground truth.
-- A best-effort **live refresh**: on load and on demand, it pulls public RSS feeds for
-  The Times of Israel, Al Jazeera, and CNN through a third-party feed-reader proxy
-  (rss2json.com), since browsers can't fetch most news sites directly (CORS).
-  Haaretz and Al Arabiya don't expose usable public feeds, so those halves of their
-  columns always show the built-in snapshot — a status dot per column shows live
-  (green) vs. snapshot (amber/red) plainly, it never fakes freshness.
+Audience
+- Legal teams and press organizations who need reliable provenance and citation metadata
+- Researchers who need structured exports (JSON/CSV)
+- Contributors who want to improve content and tools
 
-## Running it
+Quickstart
+1. Clone the repo
+   git clone https://github.com/ShawnSNGit/israel-palestine-dispatch.git
+   cd israel-palestine-dispatch
 
-It's a single static HTML file with no build step and no backend.
+2. Run the autoupdate & digest locally (requires Python 3.8+)
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements-dev.txt
+   python scripts/auto_update.py
+   python scripts/generate_digest.py
 
-```bash
-# just open it
-open index.html
+3. Run tests (if present)
+   pytest -q
 
-# or serve it locally
-python3 -m http.server 8000
-```
+How to cite a dispatch
+- Each dispatch should include a metadata header with: title, authors, date_published, sources (list with URLs), confidence_level, summary.
+- See docs/PROVENANCE.md for schema and a validation tool.
 
-## Deploying to GitHub Pages
+Contributing
+- See CONTRIBUTING.md for PR workflow, branch naming, tests, and review expectations.
 
-1. Push this repo to GitHub.
-2. Repo **Settings → Pages → Source**: select the `main` branch, root folder.
-3. Save — GitHub gives you a URL like `https://<username>.github.io/<repo>/` within
-   a minute or two.
-4. Swap that URL into the "View live demo" link above.
-
-## Known limitations
-
-- Live refresh depends on a free third-party proxy (rss2json.com); it can rate-limit
-  or go down, in which case columns fall back to the snapshot automatically.
-- Haaretz and Al Arabiya are snapshot-only — no live refresh — because neither
-  publishes a public RSS feed suitable for this.
-- The MBFC ratings table reflects one point-in-time pull and one organization's
-  methodology; it's meant as a starting point for the reader's own judgment, not a
-  verdict.
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+License
+- This repository is licensed under the MIT License — see LICENSE for details.

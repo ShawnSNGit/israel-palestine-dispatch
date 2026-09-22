@@ -1,0 +1,23 @@
+openapi: 3.0.0
+info:
+  title: Israel-Palestine Dispatch API (minimal)
+  version: '0.1'
+paths:
+  /api/v1/digests:
+    get:
+      summary: List digests
+      responses:
+        '200':
+          description: OK
+  /api/v1/digests/{id}:
+    get:
+      summary: Get digest by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK

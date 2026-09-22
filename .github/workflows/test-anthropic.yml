@@ -1,0 +1,29 @@
+name: Test Anthropic Integration
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'services/synthesis/**'
+      - '.github/workflows/test-anthropic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install -r services/synthesis/requirements.txt
+      - name: Run offline client checks
+        run: python -m compileall -q services/synthesis
+      - name: Run live smoke test when a key is available
+        if: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+        run: python services/synthesis/test_anthropic.py
